@@ -405,7 +405,7 @@ class submodule_args:
         self.contig = options.assemblies
         self.output = options.output
         self.mlen = options.min_length
-        self.pielup = options.pileup
+        self.pileup = options.pileup
         self.samtools = options.samtools
         self.jellyfish = options.jellyfish
         self.thread = options.threads
