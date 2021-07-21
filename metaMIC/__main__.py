@@ -861,7 +861,8 @@ def validate_options(options):
         expect_mode(options.mode)
         if options.bamfile is not None:
             expect_file(options.bamfile)
-            bamindex(options)
+            if not os.path.isfile(options.bamfile + '.bai'):
+                bamindex(options)
         else:
             if options.read is None and (options.read1 is None or options.read2 is None):
                 sys.stderr.write(
@@ -919,10 +920,10 @@ def main():
     sh = logging.StreamHandler()
     sh.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
     logger.addHandler(sh)
-
+    
     ########### Validate input files ###########
     logger.info('Start metaMIC')
-
+    
     options = validate_options(options)
     if options.cmd == 'download_model':
         download()
