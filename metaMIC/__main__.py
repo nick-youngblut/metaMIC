@@ -679,6 +679,12 @@ def breakpoint_detect(options, data):
     read_breakpoint['start_pos'] = [int(x) * 100 + 300 for x in list((read_breakpoint['position'] - 300) / 100)]
     data.index = data['contig'] + "_" + [str(int(x)) for x in data['start_pos']]
     if options.mode == "single":
+        if data.shape[0] == 0:
+            with open(os.path.join(options.output, "misassembly_breakpoint.txt"), 'w') as outF:
+                pass
+            with open(os.path.join(options.output, "anomaly_score.txt"), 'w') as outF:
+                pass
+            return None
         score_pred_data = Isolation_forest(options, data)
         score_pred_data.to_csv(options.output + "/anomaly_score.txt", sep="\t")
         score_pred_data = score_pred_data.loc[score_pred_data['anomaly_score'] > 0.95, ]
@@ -727,7 +733,15 @@ def breakpoint_detect(options, data):
         contig_score = pd.read_csv(os.path.join(options.output, 'metaMIC_contig_score.txt'), sep="\t", index_col=0)
         score_cut = findcut(options, contig_score)
         filtered = contig_score.loc[contig_score['metaMIC_contig_score'] > score_cut, ]
+        if filtered.shape[0] == 0:
+            filtered = contig_score.loc[contig_score['metaMIC_contig_score'] > np.percentile(contig_score['metaMIC_contig_score'], 95), ]            
         data = data[data['contig'].isin(filtered.index)]
+        if data.shape[0] == 0:
+            with open(os.path.join(options.output, "misassembly_breakpoint.txt"), 'w') as outF:
+                pass
+            with open(os.path.join(options.output, "anomaly_score.txt"), 'w') as outF:
+                pass
+            return None        
         score_pred_data = Isolation_forest(options, data)
         score_pred_data.index = range(score_pred_data.shape[0])
         score_pred_data.to_csv(os.path.join(options.output, "anomaly_score.txt"), sep="\t")
@@ -772,6 +786,10 @@ def correct(options, breakpoint_result):
     """
     Correct misassemblies
     """
+    if breakpoint_result is None:
+        with open(os.path.join(options.output, "metaMIC_corrected_contigs.fa"), 'w') as outF:
+            pass
+        return None
     breakpoint_result = breakpoint_result.loc[breakpoint_result['misassembly_breakpoint']
                                               > options.split_length, ]
     breakpoint_result = breakpoint_result.loc[(breakpoint_result['contig_length'] - breakpoint_result['misassembly_breakpoint'])

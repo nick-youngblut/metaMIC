@@ -348,15 +348,15 @@ def pileup_window_cal(pileup_dict):
 
 def read_breakpoint_per_contig(samfile, ref, lens):
     reads = samfile.fetch(contig=ref)
-    break_count = {"breakcount": np.array([0] * lens),
-                   "readcount": np.array( [0] * lens)}
+    break_count = {"breakcount" : np.array([0] * lens),
+                   "readcount" : np.array( [0] * lens)}
     for read in reads:
         ref_end = read.reference_end
         ref_start = read.reference_start
         read_start = read.query_alignment_start
         read_end = read.query_alignment_end
         break_count["readcount"][ref_start:ref_end] += 1
-
+        
         if read.is_supplementary:
             if re.match('^([0-9]+H)', read.cigarstring):
                 break_count["breakcount"][read.get_blocks()[0][0]] += 1
@@ -374,27 +374,29 @@ def read_breakpoint_per_contig(samfile, ref, lens):
                     break_count["breakcount"][read.get_blocks()[0][1] - 1] += 1
                 else:
                     break_count["breakcount"][read.get_blocks()[-1][1] - 1] += 1
+                    
     data = pd.DataFrame(break_count)
     data['position'] = data.index + 1
     data['contig'] = ref
     data = data.loc[data['breakcount'] > 0, ]
     return data
 
-
 def window_break_cal(data):
+    if data.shape[0] == 0:
+#        return pd.DataFrame(data = {'read_breakpoint_ratio' : None,
+#                                    'contig' : 'contigX',
+#                                    'start_pos' : [1]})
+        return pd.DataFrame(columns = ['read_breakpoint_ratio', 'contig', 'start_pos'])
     data['start_pos'] = [math.floor(x) * 100 + 300 for x in (data['position'] - 300) / 100]
     data = data.loc[data['start_pos'] >= 300, ]
-    data['read_breakpoint_ratio'] = data['read_breakpoint_count'] / \
-        data['read_count']
-    data['index'] = data['contig'] + '_' + \
-        [str(int(x)) for x in data['start_pos']]
+    data['read_breakpoint_ratio'] = data['read_breakpoint_count'] / data['read_count']
+    data['index'] = data['contig'] + '_' + [str(int(x)) for x in data['start_pos']]
     grouped = data.groupby(['index'])
     read_break_ratio = pd.DataFrame(grouped['read_breakpoint_ratio'].max())
     read_break_ratio['contig'] = ['_'.join(x.split("_")[:-1]) for x in read_break_ratio.index]
     read_break_ratio['start_pos'] = [int(x.split("_")[-1]) for x in read_break_ratio.index]
     read_break_ratio.index = range(read_break_ratio.shape[0])
     return read_break_ratio
-
 
 def read_breakpoint_cal(args):
     if os.path.exists(os.path.join(args.output,
@@ -403,11 +405,14 @@ def read_breakpoint_cal(args):
 
     if os.path.exists(os.path.join(args.output,
                                    "temp/read_breakpoint/read_breakpoint_per_base.txt")):
-        read_breakpoint_data = pd.read_csv(os.path.join(args.output,
-                                                        "temp/read_breakpoint/read_breakpoint_per_base.txt"), sep="\t", index_col=0)
+        read_breakpoint_data = pd.read_csv(
+            os.path.join(args.output,
+                         "temp/read_breakpoint/read_breakpoint_per_base.txt"),
+            sep="\t", index_col=0)
         window_read_breakpoint_data = window_break_cal(read_breakpoint_data)
-        window_read_breakpoint_data.to_csv(os.path.join(args.output,
-                                                        "temp/read_breakpoint/read_breakpoint_per_window.txt"),sep="\t")
+        window_read_breakpoint_data.to_csv(
+            os.path.join(args.output,
+                         "temp/read_breakpoint/read_breakpoint_per_window.txt"),sep="\t")
         return 0
 
     samfile = pysam.AlignmentFile(args.bam, "rb")
@@ -432,11 +437,13 @@ def read_breakpoint_cal(args):
             read_breakpoint_pool["position"].extend(
                 list(contig_break_data['position']))
     read_breakpoint_data = pd.DataFrame(read_breakpoint_pool)
-    read_breakpoint_data.to_csv(os.path.join(args.output,
-                                             "temp/read_breakpoint/read_breakpoint_per_base.txt"), sep="\t")
+    read_breakpoint_data.to_csv(
+        os.path.join(args.output,
+                     "temp/read_breakpoint/read_breakpoint_per_base.txt"), sep="\t")
     window_read_breakpoint_data = window_break_cal(read_breakpoint_data)
-    window_read_breakpoint_data.to_csv(os.path.join(args.output,
-                                                    "temp/read_breakpoint/read_breakpoint_per_window.txt"), sep="\t")
+    window_read_breakpoint_data.to_csv(
+        os.path.join(args.output,
+                     "temp/read_breakpoint/read_breakpoint_per_window.txt"), sep="\t")
 
 
 def pileupfile_parse(args):
@@ -642,9 +649,7 @@ def main(args = None):
     size_freq = fragment_distribution(samfile)
     mu, dev = FragMAD(size_freq)
     pool = [multiprocessing.Process(target=read_cal, args=(args, mu, dev,)),
-            multiprocessing.Process(
-        target=fragment_cal, args=(
-            args, mu, dev,)),
+            multiprocessing.Process(target=fragment_cal, args=(args, mu, dev,)),
             multiprocessing.Process(target=pileupfile_parse, args=(args,)),
             multiprocessing.Process(target=read_breakpoint_cal, args=(args,)),
             multiprocessing.Process(target=split_sam, args=(args,))]
