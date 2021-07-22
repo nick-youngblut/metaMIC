@@ -321,7 +321,12 @@ def get_file_md5(fname):
 def download_model(path, MD5):
     os.makedirs(os.path.join(base_path, 'model'),exist_ok=True)
     download_path = os.path.join(base_path, 'model',os.path.split(path)[1])
-
+    print('Downloading to {}'.format(download_path))
+    rm_dir = os.path.splitext(os.path.splitext(download_path)[0])[0]
+    if os.path.isdir(rm_dir):
+        print('Model already exists; removing existing model first...')
+        shutil.rmtree(rm_dir)
+    
     with requests.get(path, stream=True) as r:
         with open(download_path, 'wb') as f:
             shutil.copyfileobj(r.raw, f)
@@ -335,8 +340,7 @@ def download_model(path, MD5):
                 tar.extract(file_name, os.path.join(base_path, 'model'))
             tar.close()
         except Exception:
-            sys.stderr.write(
-                f"Error: cannot unzip the file.")
+            sys.stderr.write(f"Error: cannot unzip the file.")
             sys.exit(1)
         os.remove(download_path)
 
