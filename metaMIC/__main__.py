@@ -528,7 +528,6 @@ def cal_feature(options):
                                          'discordant_loc_ratio',
                                          'discordant_size_ratio',
                                          'length']]
-
     frag_coverage = pd.read_csv(os.path.join(options.output,
                                              "temp/coverage/fragment_coverage.txt"), sep="\t", index_col=0)
     pileup_feature = pd.read_csv(os.path.join(options.output,
@@ -543,10 +542,16 @@ def cal_feature(options):
     window_data = pd.merge(window_data, breakpoint_data, on=['contig', 'start_pos'], how='left')
     window_data = window_data.fillna(0)
     window_data['coverage_diff'] = window_data['normalized_coverage'] - \
-        window_data['normalized_fragment_coverage']
+        window_data['normalized_fragment_coverage']    
     os.makedirs(os.path.join(options.output, "feature_matrix"), exist_ok=True)
     window_data = window_data.loc[window_data['mean_coverage'] > 5, ]
     window_data.to_csv(os.path.join(options.output, "feature_matrix/window_fea_matrix.txt"), sep="\t")
+    if window_data.shape[0] == 0:
+        logging.warning('No window data! Exiting')
+        F = os.path.join(options.output, "feature_matrix/contig_fea_matrix.txt")
+        with open(F, 'w') as outF:
+            pass
+        sys.exit(0)
     if options.mode == 'single':
         return window_data
     else:
